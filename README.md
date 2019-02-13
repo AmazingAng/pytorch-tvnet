@@ -14,6 +14,7 @@ The original implementation was in tensorflow, which is in https://github.com/Li
 #### I) Put input frames in `frame/img1.png`, `frame/img2.png`.
 #### II) Use TVNet to generate motion representation
 All codes about the network are in tvnet.py.
+
 Sample usages include
 - Generate motion representation for frames in `frame/img1.png` and `frame/img2.png`.
 
