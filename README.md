@@ -26,7 +26,7 @@ python demo.py
 
 -TVNet generated results are saved in `result/result-pytorch.mat`
 
--Use the MPI-Sintel tool box for result visualization. In matlab, run ```run visualize/visualize.m```, or in python, use code attached in the bottom of demo.py.
+-For matlab visualization, run ```run visualize/visualize.m```. For python, use code attached in the bottom of demo.py.
 
 
 # Sample input
