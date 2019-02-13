@@ -1,14 +1,14 @@
 # pytorch-tvnet
-This project is pytorch implementation of TVNet in ['End-to-End Learning of Motion Representation for Video Understanding'](http://lijiefan.me/project_webpage/TVNet_cvpr/papers/TVNet_cvpr.pdf).
+This project is pytorch implementation of TVNet in ['End-to-End Learning of Motion Representation for Video Understanding'](http://lijiefan.me/project_webpage/TVNet_cvpr/papers/TVNet_cvpr.pdf) with *pytorch-style*.
 
-The original implementation is in tensorflow, which is in https://github.com/LijieFan/tvnet.
+The original implementation was in tensorflow, which is in https://github.com/LijieFan/tvnet.
 
 # Requirements
-**Python 3.6**
+**Python 2.7**: can support python 3.x by easily changing *xrange* function to *range*.
 
 **pytorch** 
 
-**matlab (optinonal)**: We use `.mat` file for TVNet generated results saving, and `Matlab` for results [`visualization`](http://sintel.is.tue.mpg.de). 
+**matlab (optinonal)**: In the original tensorflow version, authors use `.mat` file for TVNet generated results saving, and `Matlab` for results [`visualization`](http://sintel.is.tue.mpg.de). In the demo code, I also add code for visulizing flow map using cv2 (a python libarry).
  
 # Usage
 #### I) Put input frames in `frame/img1.png`, `frame/img2.png`.
