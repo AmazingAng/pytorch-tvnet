@@ -12,19 +12,13 @@ The original implementation was in tensorflow, which is in https://github.com/Li
  
 # Usage
 #### I) Put input frames in `frame/img1.png`, `frame/img2.png`.
-#### II) Use TVNet to generate motion representation 
-
-The file (`demo.py`) has the following options:
-- `-scale`: Number of scales in TVNet (default: 1)
-- `-warp`: Number of warppings in TVNet (default: 1)
-- `-iteration`: Number of iterations in TVNet(default: 50)
-- `-gpu`: the gpu to run on (0-indexed, -1 for CPU)
-
+#### II) Use TVNet to generate motion representation
+All codes about the network are in tvnet.py.
 Sample usages include
 - Generate motion representation for frames in `frame/img1.png` and `frame/img2.png`.
 
 ```
-python demo.py --scale 1 --warp 1 --iteration 50 --gpu 1
+python demo.py
 ``` 
 
 #### III) Check results and visualization
@@ -49,7 +43,7 @@ python demo.py --scale 1 --warp 1 --iteration 50 --gpu 1
 <td><img src="result/result-pytorch.png" height="160"></td>
 </tr>
 <tr>
-<td>tensorflow</td>
-<td>pytorch</td>
+<td>tensorflow implementation</td>
+<td>pytorch implementation</td>
 </tr>
 </table>
