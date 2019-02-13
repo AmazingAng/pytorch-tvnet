@@ -21,7 +21,7 @@ net = TVNet(max_iterations=50)
 #u1, u2, rho = net(img1,img2)
 loss, u1, u2 = net.get_loss(img1,img2)
 
-# Save flow map to file, for visualization
+# Save flow map to file, for visualization in matlab
 u1_np = np.squeeze(u1.detach().numpy())
 u2_np = np.squeeze(u2.detach().numpy())
 flow_mat = np.zeros([h, w, 2])
