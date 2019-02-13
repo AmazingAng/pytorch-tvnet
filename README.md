@@ -29,12 +29,27 @@ python demo.py --scale 1 --warp 1 --iteration 50 --gpu 1
 
 #### III) Check results and visualization
 
--TVNet generated results are saved in `result/result.mat`
+-TVNet generated results are saved in `result/result-pytorch.mat`
 
--Use the MPI-Sintel tool box for result visualization. In matlab, run ```run visualize/visualize.m```.
+-Use the MPI-Sintel tool box for result visualization. In matlab, run ```run visualize/visualize.m```, or in python, use code attached in the bottom of demo.py.
 
 
 # Sample input
+<table>
+<tr>
+<td><img src="frame/img1.png" height="160"></td>
+<td><img src="frame/img2.png" height="160"></td>
+</tr>
+</table>
 
-# Sample output (compared with original tensorflow implementation)
-
+# Sample output
+<table>
+<tr>
+<td><img src="result/result.png" height="160"></td>
+<td><img src="frame/result-pytorch.png" height="160"></td>
+</tr>
+<tr>
+<td>tensorflow</td>
+<td>pytorch</td>
+</tr>
+</table>
