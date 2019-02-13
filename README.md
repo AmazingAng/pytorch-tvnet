@@ -46,7 +46,7 @@ python demo.py --scale 1 --warp 1 --iteration 50 --gpu 1
 <table>
 <tr>
 <td><img src="result/result.png" height="160"></td>
-<td><img src="frame/result-pytorch.png" height="160"></td>
+<td><img src="result/result-pytorch.png" height="160"></td>
 </tr>
 <tr>
 <td>tensorflow</td>
