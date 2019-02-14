@@ -5,10 +5,10 @@ This project contains a **simple** and **pytorch** implementation of TVNet in ['
 
 - **Pytorch-style**: All modules (central gradient, forward gradient & divergence) extend torch.nn.Module.
 
-The original implementation was in tensorflow, which is in https://github.com/LijieFan/tvnet.
+The original implementation was in tensorflow, which can be found in https://github.com/LijieFan/tvnet.
 
 # Requirements
-- **Python 2.7**: can support python 3.x easily by changing function xrange* to *range*.
+- **Python 2.7**: can support python 3.x easily by changing function ```xrange``` to ```range```.
 
 - **pytorch** 
 
@@ -29,7 +29,7 @@ python demo.py
 
 -TVNet generated results are saved in `result/result-pytorch.mat`
 
--For matlab visualization, run ```run visualize/visualize.m```. For python, use code attached at the bottom of demo.py.
+-For matlab visualization, run ```run visualize/visualize.m```. For python, use code attached at the bottom of ```demo.py```.
 
 
 # Sample input
