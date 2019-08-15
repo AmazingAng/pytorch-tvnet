@@ -66,4 +66,6 @@ if you find my code useful for your research, please cite the original paper:
     year={2018}
 	}
 
+# License
+This project is licensed under the MIT License - see the LICENSE.md file for details
 
