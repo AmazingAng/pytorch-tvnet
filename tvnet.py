@@ -9,7 +9,6 @@ import torch.nn.functional as F
 import torchvision as tv
 import torchvision.transforms as transforms
 
-
 class Centered_Grad(nn.Module):
     # layer to calculate center gradient
     def __init__(self):
@@ -65,8 +64,9 @@ class Forward_Grad(nn.Module):
 
 class Div(nn.Module):
     # layer to calculate divergence
-    def __init__(self):
+    def __init__(self, device = torch.device("cpu")):
         super(Div, self).__init__()
+        self.device = device
         # initialize div kernels
         self.x_ker_init = torch.tensor([[[[-1, 1]]]],dtype=torch.float, requires_grad=True)
         self.y_ker_init = torch.tensor([[[[-1], [1]]]],dtype=torch.float, requires_grad=True)
@@ -75,12 +75,13 @@ class Div(nn.Module):
         self.div_conv_y =nn.Conv2d(1, 1, (2,1), bias = False)
         self.div_conv_y.weight.data = self.y_ker_init
     def forward(self, x, y):
+        # Input x shape: N*C*H*W
         assert len(x.shape) == 4
         assert len(y.shape) == 4
         # refine the boundary
-        first_col = torch.zeros([x.shape[0], x.shape[1], x.shape[2], 1])
+        first_col = torch.zeros([x.shape[0], x.shape[1], x.shape[2], 1]).to(self.device)
         x_pad = torch.cat((first_col, x[:,:,:,0:-1]), dim = 3)
-        first_row = torch.zeros([x.shape[0], x.shape[1], 1, x.shape[3]])
+        first_row = torch.zeros([x.shape[0], x.shape[1], 1, x.shape[3]]).to(self.device)
         y_pad = torch.cat((first_row, y[:,:,0:-1,:]), dim = 2)
         
         x.padright = F.pad(x_pad, (0,1,0,0))
@@ -99,20 +100,22 @@ class IterBlock(nn.Module):
     def __init__(self, 
                  l_t=0.045,  # lbda*theta
                  taut=2.5, # tau/theta
-                 theta=0.3  # weight parameter for (u - v)^2
+                 theta=0.3,  # weight parameter for (u - v)^2
+                 device = torch.device("cpu")
                 ):
         super(IterBlock, self).__init__()
         self.l_t = l_t
         self.taut = taut
         self.theta = theta
-        self.divergence_x = Div()
-        self.divergence_y = Div()
+        self.divergence_x = Div(device = device)
+        self.divergence_y = Div(device = device)
         self.forward_gradient_x = Forward_Grad()
         self.forward_gradient_y = Forward_Grad()
+            
 
     def forward(self, diff2_x_warp, diff2_y_warp, u1, u2, grad, p11 , p12, p21, p22,
                 rho_c=0):
-    
+        
         rho = rho_c + diff2_x_warp * u1 + diff2_y_warp * u2 + self.GRAD_IS_ZERO;
         # calculate v^k+1 with thresholding operation
         masks1 = rho < -self.l_t * grad
@@ -155,9 +158,11 @@ class WarpBlock(nn.Module):
                  tau=0.25,  # time step
                  lbda=0.15,  # weight parameter for the data term
                  theta=0.3,  # weight parameter for (u - v)^2
-                 max_iterations=10  # maximum number of iterations for optimization
+                 max_iterations=10,  # maximum number of iterations for optimization
+                 device = torch.device("cpu")
                 ):
         super(WarpBlock, self).__init__()
+        self.device = device
         self.l_t = lbda * theta
         self.theta = theta
         self.taut = tau / theta
@@ -166,7 +171,7 @@ class WarpBlock(nn.Module):
         self.centered_gradient = Centered_Grad()
         
         for i in range(max_iterations):
-            iterblock = IterBlock(self.l_t, self.taut, self.theta)
+            iterblock = IterBlock(self.l_t, self.taut, self.theta, device = device)
             self.add_module('iterblock%d' % (i+1), iterblock)
             
     
@@ -206,8 +211,8 @@ class WarpBlock(nn.Module):
         assert len(u.shape) == 3
         assert len(v.shape) == 3
         N,C,iH,iW = x.shape
-        tensorHorizontal = torch.linspace(-1.0, 1.0, iW).view(1, 1, iW,1).expand(N, iH, -1, -1)
-        tensorVertical = torch.linspace(-1.0, 1.0, iH).view(1, iH, 1,1).expand(N, -1, iW, -1)
+        tensorHorizontal = torch.linspace(-1.0, 1.0, iW).view(1, 1, iW,1).expand(N, iH, -1, -1).to(self.device)
+        tensorVertical = torch.linspace(-1.0, 1.0, iH).view(1, iH, 1,1).expand(N, -1, iW, -1).to(self.device)
 
         tensorGrid = torch.cat([tensorHorizontal, tensorVertical], 3)
         tensorFlow = torch.cat((u.unsqueeze(3), v.unsqueeze(3)), dim=3)
@@ -216,6 +221,14 @@ class WarpBlock(nn.Module):
         return torch.nn.functional.grid_sample(input=x, grid=(tensorGrid + tensorFlow), mode='bilinear', padding_mode='border')
 
 
+    
+    
+    
+    
+    
+    
+    
+    
     
 class TVNet(torch.nn.Module):
     # Default Shape:
@@ -228,8 +241,10 @@ class TVNet(torch.nn.Module):
                  lbda=0.15,  # weight parameter for the data term
                  theta=0.3,  # weight parameter for (u - v)^2
                  max_iterations=10,  # maximum number of iterations for optimization
+                 device = torch.device("cpu")
                 ):
         super(TVNet, self).__init__()
+        self.device = device
         ## self.n_scales = 1
         self.tau = tau
         self.lbda = lbda
@@ -243,15 +258,18 @@ class TVNet(torch.nn.Module):
                                             [0.006976, 0.0557, 0.110656, 0.0557, 0.006976],
                                             [0.01386, 0.110656, 0.219833, 0.110656, 0.01386],
                                             [0.006976, 0.0557, 0.110656, 0.0557, 0.006976],
-                                            [0.000874, 0.006976, 0.01386, 0.006976, 0.000874]]]])
+                                            [0.000874, 0.006976, 0.01386, 0.006976, 0.000874]]]]).to(device)
+
         
         
         # 3. Warp Block
         self.warpblock = WarpBlock(self.tau, self.lbda, self.theta, 
-                              self.max_iterations)
-        
+                              self.max_iterations, device = device)
         self.register_parameter('u1', None)
         self.register_parameter('u2', None)
+        
+        # 4. One forward gradient layer for calculating the gradient
+        self.forward_gradient = Forward_Grad()
 
 
     def forward(self, x1, x2):
@@ -259,15 +277,15 @@ class TVNet(torch.nn.Module):
         ## n_scales = 1
         x1 = self.trans_grayscale(x1)*255
         x2 = self.trans_grayscale(x2)*255
-        x1 = torch.unsqueeze(x1, 0)
-        x2 = torch.unsqueeze(x2, 0)
+        x1 = torch.unsqueeze(x1, 0).to(self.device)
+        x2 = torch.unsqueeze(x2, 0).to(self.device)
         
         x1 = F.conv2d(x1, self.gaussiankernel, padding=2)
         x2 = F.conv2d(x2, self.gaussiankernel, padding=2)
         
         
         # checked
-        for i in xrange(len(x1.shape)):
+        for i in range(len(x1.shape)):
             assert x1.shape[i] == x2.shape[i]
 
         height = x1.shape[-2]
@@ -277,12 +295,12 @@ class TVNet(torch.nn.Module):
         if self.u1 is None:
             self.u1 = nn.Parameter(x1.new_full((1,height, width), 0))  
             self.u2 = nn.Parameter(x2.new_full((1,height, width), 0))
-        
-        u1 = self.u1.expand(x1.shape[0], -1, -1)
-        u2 = self.u2.expand(x2.shape[0], -1, -1)
+                
+        u1 = self.u1.expand(x1.shape[0], -1, -1).to(self.device)
+        u2 = self.u2.expand(x2.shape[0], -1, -1).to(self.device)
         u1, u2, rho = self.warpblock(x1, x2, u1, u2)
             
-        return u1, u2, rho
+        return u1, u2, rho        
     
     def warp_image(self, x, u, v):
         # warp image according to displacement u and v
@@ -291,8 +309,8 @@ class TVNet(torch.nn.Module):
         assert len(u.shape) == 3
         assert len(v.shape) == 3
         N,C,iH,iW = x.shape
-        tensorHorizontal = torch.linspace(-1.0, 1.0, iW).view(1, 1, iW,1).expand(N, iH, -1, -1)
-        tensorVertical = torch.linspace(-1.0, 1.0, iH).view(1, iH, 1,1).expand(N, -1, iW, -1)
+        tensorHorizontal = torch.linspace(-1.0, 1.0, iW).view(1, 1, iW,1).expand(N, iH, -1, -1).to(self.device)
+        tensorVertical = torch.linspace(-1.0, 1.0, iH).view(1, iH, 1,1).expand(N, -1, iW, -1).to(self.device)
 
         tensorGrid = torch.cat([tensorHorizontal, tensorVertical], 3)
         tensorFlow = torch.cat((u.unsqueeze(3), v.unsqueeze(3)), dim=3)
@@ -326,39 +344,14 @@ class TVNet(torch.nn.Module):
         assert len(x.shape) == 4   
         return F.interpolate(x, size=(new_height, new_width), mode='bilinear', align_corners=True)
     
-    def forward_gradient(self, x):
-        assert len(x.shape) == 4
-
-        x.padright = F.pad(x, (0,1,0,0))
-        x.padbottom = F.pad(x, (0,0,0,1))
-
-        x_ker_init = torch.tensor([[[[-1, 1]]]],dtype=torch.float, requires_grad=True)
-        diff_x = F.conv2d(x.padright, x_ker_init, padding=0)
-        y_ker_init = torch.tensor([[[[-1], [1]]]],dtype=torch.float, requires_grad=True)
-        diff_y = F.conv2d(x.padbottom, y_ker_init, padding=0)
-
-        # refine the boundary
-        diff_x[:,:,:,(x.shape[3]-1)] = 0
-        diff_y[:,:,(x.shape[2]-1),:] = 0
-        return diff_x, diff_y
-
-    
-    def get_loss(self, x1, x2,
-             tau=0.25,  # time step
-             lbda=0.15,  # weight parameter for the data term
-             theta=0.3,  # weight parameter for (u - v)^2
-             warps=5,  # number of warpings per scale
-             zfactor=0.5,  # factor for building the image piramid
-             max_scales=5,  # maximum number of scales for image piramid
-             max_iterations=20  # maximum number of iterations for optimization
-             ):
+    def get_loss(self, x1, x2):
 
         u1, u2, rho = self.forward(x1, x2)
         
         x1 = self.trans_grayscale(x1)*255
         x2 = self.trans_grayscale(x2)*255
-        x1 = torch.unsqueeze(x1, 0)
-        x2 = torch.unsqueeze(x2, 0)
+        x1 = torch.unsqueeze(x1, 0).to(self.device)
+        x2 = torch.unsqueeze(x2, 0).to(self.device)
         
         # computing loss
         u1x, u1y = self.forward_gradient(u1.unsqueeze(1))
@@ -366,7 +359,6 @@ class TVNet(torch.nn.Module):
 
         x2_warp = self.warp_image(x2, u1, u2)
         x2_warp = x2_warp.view(x2.shape)
-        loss = lbda * torch.mean(torch.abs(x2_warp - x1)) + torch.mean(
+        loss = self.lbda * torch.mean(torch.abs(x2_warp - x1)) + torch.mean(
             torch.abs(u1x) + torch.abs(u1y) + torch.abs(u2x) + torch.abs(u2y))
         return loss, u1, u2
-
