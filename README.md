@@ -7,7 +7,7 @@ This project contains a **simple** and **pytorch** implementation of TVNet in ['
 
 The original implementation was in tensorflow, which can be found in https://github.com/LijieFan/tvnet.
 
-- **Update 2020/04/20**: GPU support, try demo_gpu.py
+- **Update 2020/04/20**: GPU support, try demo_gpu.py; support batch mode, try demo_batch_mode.py.
 
 # Requirements
 - **Python 2.7**: can support python 3.x easily by changing function ```xrange``` to ```range```.
