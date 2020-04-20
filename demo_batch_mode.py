@@ -24,8 +24,9 @@ net = TVNet(max_iterations=50, device = device).to(device)
 # Pre processing images
 x1 = net.trans_grayscale(img1)*255
 x2 = net.trans_grayscale(img2)*255
-x1 = x1.unsqueeze(0).to(device)
-x2 = x2.unsqueeze(0).to(device)
+# Copy tensor for 5 times (batch mode example)
+x1 = x1.unsqueeze(0).repeat(5,1,1,1).to(device)
+x2 = x2.unsqueeze(0).repeat(5,1,1,1).to(device)
 u1, u2, rho = net(x1,x2)
 #loss, u1, u2 = net.get_loss(x1,x2)
 
@@ -33,8 +34,8 @@ u1, u2, rho = net(x1,x2)
 u1_np = np.squeeze(u1.detach().cpu().numpy())
 u2_np = np.squeeze(u2.detach().cpu().numpy())
 flow_mat = np.zeros([h, w, 2])
-flow_mat[:, :, 0] = u1_np[1]
-flow_mat[:, :, 1] = u2_np[1]
+flow_mat[:, :, 0] = u1_np[2]
+flow_mat[:, :, 1] = u2_np[2]
 
 if not os.path.exists('result'):
     os.mkdir('result')
@@ -49,7 +50,7 @@ sio.savemat(res_path, {'flow': flow_mat})
 ## #Use Hue, Saturation, Value colour model 
 ## hsv = np.zeros(img1cv.shape, dtype=np.uint8)
 ## hsv[..., 1] = 255
-## mag, ang = cv2.cartToPolar(u1.detach().squeeze().numpy(), u2.detach().squeeze().numpy())
+## mag, ang = cv2.cartToPolar(u1[1].detach().squeeze().numpy(), u2[1].detach().squeeze().numpy())
 ## hsv[..., 0] = ang * 180 / np.pi / 2
 ## hsv[..., 2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
 ## bgr = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)

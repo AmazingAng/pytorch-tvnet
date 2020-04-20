@@ -9,6 +9,7 @@ import torch.nn.functional as F
 import torchvision as tv
 import torchvision.transforms as transforms
 from tvnet import *
+device  = torch.device("cpu")
 
 # load image
 img1 = Image.open('frame/img1.png').convert('RGB')
@@ -18,8 +19,14 @@ plt.imshow(img1)
 
 # calculate optical flow
 net = TVNet(max_iterations=50)
-#u1, u2, rho = net(img1,img2)
-loss, u1, u2 = net.get_loss(img1,img2)
+# Pre processing images
+x1 = net.trans_grayscale(img1)*255
+x2 = net.trans_grayscale(img2)*255
+x1 = x1.unsqueeze(0).to(device)
+x2 = x2.unsqueeze(0).to(device)
+u1, u2, rho = net(x1,x2)
+#loss, u1, u2 = net.get_loss(x1,x2)
+
 
 # Save flow map to file, for visualization in matlab
 u1_np = np.squeeze(u1.detach().numpy())

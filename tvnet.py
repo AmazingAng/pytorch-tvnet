@@ -116,7 +116,9 @@ class IterBlock(nn.Module):
     def forward(self, diff2_x_warp, diff2_y_warp, u1, u2, grad, p11 , p12, p21, p22,
                 rho_c=0):
         
-        rho = rho_c + diff2_x_warp * u1 + diff2_y_warp * u2 + self.GRAD_IS_ZERO;
+        u1_NCHW = u1.unsqueeze(1)
+        u2_NCHW = u2.unsqueeze(1)
+        rho = rho_c + diff2_x_warp * u1_NCHW + diff2_y_warp * u2_NCHW + self.GRAD_IS_ZERO;
         # calculate v^k+1 with thresholding operation
         masks1 = rho < -self.l_t * grad
         d1_1 = torch.where(masks1, self.l_t * diff2_x_warp, torch.zeros_like(diff2_x_warp))
@@ -130,14 +132,13 @@ class IterBlock(nn.Module):
         d1_3 = torch.where(masks3, -rho / grad * diff2_x_warp, torch.zeros_like(diff2_x_warp))
         d2_3 = torch.where(masks3, -rho / grad * diff2_y_warp, torch.zeros_like(diff2_y_warp))
 
-        v1 = d1_1 + d1_2 + d1_3 + u1
-        v2 = d2_1 + d2_2 + d2_3 + u2
+        v1 = d1_1 + d1_2 + d1_3 +u1_NCHW
+        v2 = d2_1 + d2_2 + d2_3 +u2_NCHW
+        u1_NCHW = (v1 + self.theta * self.divergence_x(p11, p12))
+        u2_NCHW = (v2 + self.theta * self.divergence_y(p21, p22))
 
-        u1 = (v1 + self.theta * self.divergence_x(p11, p12)).squeeze(1)
-        u2 = (v2 + self.theta * self.divergence_y(p21, p22)).squeeze(1)
-
-        u1x, u1y = self.forward_gradient_x(u1.unsqueeze(1))
-        u2x, u2y = self.forward_gradient_y(u2.unsqueeze(1))
+        u1x, u1y = self.forward_gradient_x(u1_NCHW)
+        u2x, u2y = self.forward_gradient_y(u2_NCHW)
 
         p11 = (p11 + self.taut * u1x) / (
             1.0 + self.taut * torch.sqrt(u1x.pow(2) + u1y.pow(2) + self.GRAD_IS_ZERO));
@@ -147,7 +148,7 @@ class IterBlock(nn.Module):
             1.0 + self.taut * torch.sqrt(u2x.pow(2) + u2y.pow(2) + self.GRAD_IS_ZERO));
         p22 = (p22 + self.taut * u2y) / (
             1.0 + self.taut * torch.sqrt(u2x.pow(2) + u2y.pow(2) + self.GRAD_IS_ZERO));
-        return p11, p12, p21, p22, rho, u1, u2
+        return p11, p12, p21, p22, rho, u1_NCHW.squeeze(1), u2_NCHW.squeeze(1)
     
     
 class WarpBlock(nn.Module):
@@ -194,8 +195,7 @@ class WarpBlock(nn.Module):
 
         grad = diff2_x_sq + diff2_y_sq + self.GRAD_IS_ZERO
 
-        rho_c = x2_warp - diff2_x_warp * u1 - diff2_y_warp * u2 - x1
-
+        rho_c = x2_warp - diff2_x_warp * u1.unsqueeze(1) - diff2_y_warp * u2.unsqueeze(1) - x1
         for ii in range(self.max_iterations):
             [p11, p12, p21, p22, rho, u1, u2] = self._modules['iterblock%d' % (ii+1)](diff2_x_warp, 
                                                                                       diff2_y_warp, 
@@ -259,8 +259,6 @@ class TVNet(torch.nn.Module):
                                             [0.01386, 0.110656, 0.219833, 0.110656, 0.01386],
                                             [0.006976, 0.0557, 0.110656, 0.0557, 0.006976],
                                             [0.000874, 0.006976, 0.01386, 0.006976, 0.000874]]]]).to(device)
-
-        
         
         # 3. Warp Block
         self.warpblock = WarpBlock(self.tau, self.lbda, self.theta, 
@@ -271,19 +269,12 @@ class TVNet(torch.nn.Module):
         # 4. One forward gradient layer for calculating the gradient
         self.forward_gradient = Forward_Grad()
 
-
     def forward(self, x1, x2):
         
-        ## n_scales = 1
-        x1 = self.trans_grayscale(x1)*255
-        x2 = self.trans_grayscale(x2)*255
-        x1 = torch.unsqueeze(x1, 0).to(self.device)
-        x2 = torch.unsqueeze(x2, 0).to(self.device)
         
         x1 = F.conv2d(x1, self.gaussiankernel, padding=2)
         x2 = F.conv2d(x2, self.gaussiankernel, padding=2)
-        
-        
+
         # checked
         for i in range(len(x1.shape)):
             assert x1.shape[i] == x2.shape[i]
@@ -295,7 +286,6 @@ class TVNet(torch.nn.Module):
         if self.u1 is None:
             self.u1 = nn.Parameter(x1.new_full((1,height, width), 0))  
             self.u2 = nn.Parameter(x2.new_full((1,height, width), 0))
-                
         u1 = self.u1.expand(x1.shape[0], -1, -1).to(self.device)
         u2 = self.u2.expand(x2.shape[0], -1, -1).to(self.device)
         u1, u2, rho = self.warpblock(x1, x2, u1, u2)
@@ -322,24 +312,6 @@ class TVNet(torch.nn.Module):
         new_height = int(float(height) * factor + 0.5)
         new_width = int(float(width) * factor + 0.5)                  
         return new_height, new_width# Input x shape: N*C*H*W
-        assert len(x.shape) == 4
-        x_ker_init = torch.tensor([[[[-0.5, 0, 0.5]]]],dtype=torch.float, requires_grad=True)
-        diff_x = F.conv2d(x, x_ker_init, padding=(0,1))
-        y_ker_init = torch.tensor([[[[-0.5], [0], [0.5]]]],dtype=torch.float, requires_grad=True)
-        diff_y = F.conv2d(x, y_ker_init, padding=(1,0))
-        # refine the boundary
-        ## ! check if the selection of tensor reduce the dimension!
-        first_col = 0.5 * (x[:,:,:,1:2]-x[:,:,:,0:1])
-        last_col = 0.5 * (x[:,:,:,-1:]-x[:,:,:,-2:-1])
-        diff_x_valid = diff_x[:,:,:,1:-1]
-        diff_x = torch.cat((first_col, diff_x_valid, last_col), 3)
-        
-        first_row = 0.5 * (x[:,:,1:2,:]-x[:,:,0:1,:])
-        last_row = 0.5 * (x[:,:,-1:,:]-x[:,:,-2:-1,:])
-        diff_y_valid = diff_y[:,:,1:-1,:]
-        diff_y = torch.cat((first_row, diff_y_valid, last_row), 2)
-        return diff_x, diff_y
-
     def zoom_image(self, x, new_height, new_width):
         assert len(x.shape) == 4   
         return F.interpolate(x, size=(new_height, new_width), mode='bilinear', align_corners=True)
@@ -347,11 +319,6 @@ class TVNet(torch.nn.Module):
     def get_loss(self, x1, x2):
 
         u1, u2, rho = self.forward(x1, x2)
-        
-        x1 = self.trans_grayscale(x1)*255
-        x2 = self.trans_grayscale(x2)*255
-        x1 = torch.unsqueeze(x1, 0).to(self.device)
-        x2 = torch.unsqueeze(x2, 0).to(self.device)
         
         # computing loss
         u1x, u1y = self.forward_gradient(u1.unsqueeze(1))
