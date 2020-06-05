@@ -10,7 +10,7 @@ The original implementation was in tensorflow, which can be found in https://git
 - **Update 2020/04/20**: GPU support, try demo_gpu.py; support batch mode, try demo_batch_mode.py.
 
 # Requirements
-- **Python 2.7**: can support python 3.x easily by changing function ```xrange``` to ```range```.
+- **Python 3**: also tested on python 2.7.
 
 - **pytorch** 
 
